@@ -1,6 +1,6 @@
 import tensorflow_probability as tfp
 
-from tensorflow import layers
+#from tensorflow import layers
 from tensorflow.keras import layers as k_layers
 from tensorflow.keras import initializers
 from utils.misc_utils import *

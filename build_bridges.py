@@ -1,8 +1,11 @@
+
+
 import os
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 import numpy as np
 import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
 import tensorflow_probability as tfp
 tfb = tfp.bijectors
 tfd = tfp.distributions
@@ -62,13 +65,13 @@ def build_optimisers(tre_loss, pholders, config):
 
     optimizer, scale_optimizer = build_optimiser(config, pholders.lr_var, scale_param_lr)
 
-    energy_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=model_scope)
+    energy_params = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=model_scope)
     scale_param = [v for v in energy_params if "b_all" in v.name][0]
     energy_params = [v for v in energy_params if "b_all" not in v.name]
 
     scale_optim_op = scale_optimizer.minimize(tf.reduce_mean(tre_loss), var_list=scale_param)
 
-    reg_term = tf.losses.get_regularization_loss(scope=model_scope)
+    reg_term = tf.compat.v1.losses.get_regularization_loss(scope=model_scope)
     tre_optim_op = optimizer.minimize(tf.reduce_mean(tre_loss) + reg_term, var_list=energy_params)
 
     optim_op = tf.group(tre_optim_op, scale_optim_op)
@@ -79,17 +82,17 @@ def build_optimisers(tre_loss, pholders, config):
 def build_optimiser(config, lr_var, scale_param_lr):
 
     if config.optimizer == "adam":
-        optimizer = tf.train.AdamOptimizer(lr_var)
-        scale_optimizer = tf.train.AdamOptimizer(scale_param_lr)
+        optimizer = tf.compat.v1.train.AdamOptimizer(lr_var)
+        scale_optimizer = tf.compat.v1.train.AdamOptimizer(scale_param_lr)
     elif config.optimizer == "lazy_adam":
-        optimizer = tf.contrib.opt.LazyAdamOptimizer(lr_var)
-        scale_optimizer = tf.contrib.opt.LazyAdamOptimizer(scale_param_lr)
+        optimizer = tf.compat.v1.contrib.opt.LazyAdamOptimizer(lr_var)
+        scale_optimizer = tf.compat.v1.contrib.opt.LazyAdamOptimizer(scale_param_lr)
     elif config.optimizer == "rmsprop":
         optimizer = tf.compat.v1.train.RMSPropOptimizer(lr_var)
         scale_optimizer = tf.compat.v1.train.RMSPropOptimizer(scale_param_lr)
     elif config.optimizer == "momentum":
-        optimizer = tf.train.MomentumOptimizer(lr_var, momentum=0.9, use_nesterov=True)
-        scale_optimizer = tf.train.MomentumOptimizer(scale_param_lr, momentum=0.9, use_nesterov=True)
+        optimizer = tf.compat.v1.train.MomentumOptimizer(lr_var, momentum=0.9, use_nesterov=True)
+        scale_optimizer = tf.compat.v1.train.MomentumOptimizer(scale_param_lr, momentum=0.9, use_nesterov=True)
     else:
         raise ValueError("unknown optimizer: {}".format(config.optimizer))
 
@@ -169,7 +172,7 @@ def build_graph(config):
     wmark0_data = waymark_construction_results.waymark0_data
     wmark_data = waymark_construction_results.waymark_data
 
-    with tf.variable_scope("tre_model"):
+    with tf.compat.v1.variable_scope("tre_model"):
 
         idxs = config.initial_waymark_indices
         max_num_ratios = idxs[-1]
@@ -659,13 +662,13 @@ def _plot_1d_logratio(u_batch, true_logratio_vals_at_u,
 
 # noinspection PyUnresolvedReferences
 def make_savers(config):
-    energy_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='tre_model/')
+    energy_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope='tre_model/')
     if config.save_every_x_epochs:
         num_to_save = int(config.n_epochs / config.save_every_x_epochs)
-        saver1 = tf.train.Saver(var_list=energy_vars, max_to_keep=num_to_save, save_relative_paths=True)
+        saver1 = tf.compat.v1.train.Saver(var_list=energy_vars, max_to_keep=num_to_save, save_relative_paths=True)
     else:
         saver1 = None
-    saver2 = tf.train.Saver(var_list=energy_vars, max_to_keep=2, save_relative_paths=True)
+    saver2 = tf.compat.v1.train.Saver(var_list=energy_vars, max_to_keep=2, save_relative_paths=True)
     return saver1, saver2
 
 
@@ -744,8 +747,8 @@ def main():
     # create a dictionary whose keys are tensorflow operations that can be accessed like attributes e.g graph.operation
     graph = build_graph(config)
 
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
+    with tf.compat.v1.Session() as sess:
+        sess.run(tf.compat.v1.global_variables_initializer())
 
         if config.restore_model:
             load_model(sess, "best", config)

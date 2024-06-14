@@ -1,7 +1,7 @@
 import tensorflow_probability as tfp
 
 from density_estimators.flows import Flow
-from tensorflow import layers
+#from tensorflow import layers
 from tensorflow.keras.models import Model
 from tensorflow.keras import layers as k_layers
 from tensorflow.keras import regularizers
@@ -106,7 +106,7 @@ class QuadraticHeads:
     def bridge_idxs(self, val):
         self._bridge_idxs = val
 
-    @tf_cache_template("quad_heads", initializer=initializers.normal(stddev=0.001))
+    @tf_cache_template("quad_heads", initializer=initializers.RandomNormal(stddev=0.001))
     def eval(self, x, is_train, is_wmark_input=False, *args):
 
         # x has shape (?, num_ratios, d)
@@ -226,7 +226,7 @@ class BilinearHeads:
     def bridge_idxs(self, val):
         self._bridge_idxs = val
 
-    @tf_cache_template("bilinear_heads", initializer=initializers.normal(stddev=0.005))
+    @tf_cache_template("bilinear_heads", initializer=initializers.RandomNormal(stddev=0.005))
     def eval(self, f, g, is_train, is_wmark_input=False, *args):
 
         # f has shape (?, d) and g has shape (?, num_ratios, d)
@@ -545,7 +545,7 @@ class ResNet:
         self.model = self.build_resnet(self.channel_widths, self.img_shape)
 
         for loss in self.model.losses:
-            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, loss)
+            tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES, loss)
 
     def build_resnet(self, channel_widths, shape):
 

@@ -117,8 +117,8 @@ def make_block_diagonal(matrices, dtype=tf.float32):
         shape [..., \sum_i N_i, \sum_i M_i].
     """
     matrices = [tf.convert_to_tensor(matrix, dtype=dtype) for matrix in matrices]
-    blocked_rows = tf.Dimension(0)
-    blocked_cols = tf.Dimension(0)
+    blocked_rows = tf.compat.v1.Dimension(0)
+    blocked_cols = tf.compat.v1.Dimension(0)
     batch_shape = tf.TensorShape(None)
     for matrix in matrices:
         full_matrix_shape = matrix.get_shape().with_rank_at_least(2)
@@ -191,7 +191,7 @@ def tf_var_scope(function, scope=None, *args, **kwargs):
 
     @functools.wraps(function)
     def decorator(self, *args2, **kwargs2):
-        with tf.variable_scope(name, *args, **kwargs):
+        with tf.compat.v1.variable_scope(name, *args, **kwargs):
             return function(self, *args2, **kwargs2)
 
     return decorator
@@ -244,7 +244,7 @@ def tf_cache_template(function, scope=None, *args, **kwargs):
     def decorator(self, *args1, **kwargs1):
         if not hasattr(self, attribute):
             def scoped_function(self, *args1, **kwargs1):
-                with tf.variable_scope(name, *args, **kwargs):
+                with tf.compat.v1.variable_scope(name, *args, **kwargs):
                     return function(self, *args1, **kwargs1)
 
             template = tf.compat.v1.make_template(name, scoped_function)
@@ -295,7 +295,7 @@ def tf_l2_regulariser(scale, scope=None):
 
     def l2(weights):
         """Applies l2 regularization to weights."""
-        with tf.name_scope(scope, 'l2_regularizer', [weights]) as name:
+        with tf.compat.v1.name_scope(scope, 'l2_regularizer', [weights]) as name:
             my_scale = tf.convert_to_tensor(scale,
                                             dtype=weights.dtype.base_dtype,
                                             name='scale')
@@ -398,8 +398,8 @@ def make_flexible_Dense_fn():
 
 def tf_enforce_lower_diag_and_nonneg_diag(A, shift=0.0):
     mask = tf.ones_like(A)
-    ldiag_mask = tf.matrix_band_part(mask, -1, 0)
-    diag_mask = tf.matrix_band_part(mask, 0, 0)
+    ldiag_mask = tf.compat.v1.matrix_band_part(mask, -1, 0)
+    diag_mask = tf.compat.v1.matrix_band_part(mask, 0, 0)
     strict_ldiag_mask = ldiag_mask - diag_mask
 
     # should I use exp or softplus here?

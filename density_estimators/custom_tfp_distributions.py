@@ -13,7 +13,7 @@ class logit(tfp.bijectors.Bijector):
 
     def _forward(self, x):
         x = self.scale_x_with_alpha(x)
-        return tf.log(x / (1.0 - x))
+        return tf.compat.v1.log(x / (1.0 - x))
 
     def _inverse(self, x):
         x = 1 / (1 + tf.exp(-x))
@@ -22,7 +22,7 @@ class logit(tfp.bijectors.Bijector):
     def _forward_log_det_jacobian(self, x):
         x = tf.reshape(x, [shape_list(x)[0], -1])
         s_x = self.scale_x_with_alpha(x)
-        ldj = tf.reduce_sum(tf.log(1/s_x + 1/(1-s_x)) + tf.log(1 - 2*self.alpha), axis=-1)
+        ldj = tf.reduce_sum(tf.compat.v1.log(1/s_x + 1/(1-s_x)) + tf.compat.v1.log(1 - 2*self.alpha), axis=-1)
         return ldj
 
     def scale_x_with_alpha(self, x):

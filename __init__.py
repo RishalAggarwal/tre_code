@@ -1,7 +1,7 @@
 import os
 import sys
 
-local_pc_root = os.path.expanduser("~/tre_code/")
+local_pc_root = os.path.expanduser("./")
 if os.path.isdir(local_pc_root):
     project_root = local_pc_root
 else:

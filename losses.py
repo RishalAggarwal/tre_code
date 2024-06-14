@@ -7,7 +7,7 @@ class LogisticLoss:
 
     def __init__(self, nu, label_smoothing_alpha=0.0, one_sided_smoothing=True):
         self.nu = nu
-        self.log_nu = tf.log(nu)
+        self.log_nu = tf.compat.v1.log(nu)
         self.class1_acc = None
         self.class2_acc = None
         self.acc = None
@@ -26,8 +26,8 @@ class LogisticLoss:
         """
         neg_energy1, neg_energy2 = tf.split(neg_energy, num_or_size_splits=2, axis=0)  # each (n, n_losses)
 
-        term1 = tf.log_sigmoid(neg_energy1 - self.log_nu)  # (n, n_losses)
-        term2 = tf.log_sigmoid(self.log_nu - neg_energy2)  # (n, n_losses)
+        term1 = tf.compat.v1.log_sigmoid(neg_energy1 - self.log_nu)  # (n, n_losses)
+        term2 = tf.compat.v1.log_sigmoid(self.log_nu - neg_energy2)  # (n, n_losses)
 
         if self.ls_alpha > 0:
             term1, term2 = self.apply_label_smoothing(neg_energy1, neg_energy2, term1, term2)
@@ -42,18 +42,18 @@ class LogisticLoss:
     def apply_label_smoothing(self, neg_energy1, neg_energy2, term1, term2):
 
         term1 *= (1 - self.ls_alpha)
-        term1 += self.ls_alpha * tf.log_sigmoid(-neg_energy1)
+        term1 += self.ls_alpha * tf.compat.v1.log_sigmoid(-neg_energy1)
         if not self.one_sided_smoothing:
             term2 *= (1 - self.ls_alpha)
-            term2 += self.ls_alpha * tf.log_sigmoid(neg_energy2)
+            term2 += self.ls_alpha * tf.compat.v1.log_sigmoid(neg_energy2)
 
         return term1, term2
 
     def compute_classification_acc(self, term1, term2):
 
-        class1_scores = tf.where(term1 > -tf.log(2.), tf.ones_like(term1, dtype=tf.float32),
+        class1_scores = tf.where(term1 > -tf.compat.v1.log(2.), tf.ones_like(term1, dtype=tf.float32),
                                  tf.zeros_like(term1, dtype=tf.float32))
-        class2_scores = tf.where(term2 > -tf.log(2.), tf.ones_like(term2, dtype=tf.float32),
+        class2_scores = tf.where(term2 > -tf.compat.v1.log(2.), tf.ones_like(term2, dtype=tf.float32),
                                  tf.zeros_like(term2, dtype=tf.float32))
 
         self.class1_acc = tf.reduce_mean(class1_scores, axis=0)  # (n_losses,)
@@ -95,7 +95,7 @@ class DVLoss:
         n_samples = shape_list(neg_energy2)
 
         self.term1 = -tf.reduce_mean(neg_energy1)
-        self.term2 = tf.reduce_logsumexp(neg_energy2) - tf.log(n_samples)
+        self.term2 = tf.reduce_logsumexp(neg_energy2) - tf.compat.v1.log(n_samples)
 
         return self.term1 + self.term2
 
@@ -196,7 +196,7 @@ class CNCELoss:
             log_class_prob = tf.nn.softplus(ebm_log_p_noise + condprob_data_given_noise
                                             - ebm_log_p_data - condprob_noise_given_data)
 
-        self.acc = tf.reduce_mean(tf.where(log_class_prob < tf.log(2.),
+        self.acc = tf.reduce_mean(tf.where(log_class_prob < tf.compat.v1.log(2.),
                                            tf.ones_like(log_class_prob, dtype=tf.float32),
                                            tf.zeros_like(log_class_prob, dtype=tf.float32)))
 
