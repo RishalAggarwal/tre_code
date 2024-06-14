@@ -24,30 +24,30 @@ tfd = tfp.distributions
 def build_placeholders():
     if "img_shape" in data_args and data_args["img_shape"] is not None:
         shp = data_args["img_shape"]
-        data = tf.placeholder_with_default(np.zeros((1, *shp), dtype=np.float32), (None, *shp), "data")
-        waymark_data = tf.placeholder_with_default(np.zeros((1, 1, *shp), dtype=np.float32), (None, None, *shp), "wmark_data")
-        initial_states = tf.placeholder_with_default(np.zeros((1, *shp), dtype=np.float32), (None, *shp), "initial_states")
-        dimwise_mixing_ordering = tf.placeholder_with_default(np.zeros((1, *shp), dtype=np.int32), (None, *shp), "dimwise_mixing_ordering")
+        data = tf.compat.v1.placeholder_with_default(np.zeros((1, *shp), dtype=np.float32), (None, *shp), "data")
+        waymark_data = tf.compat.v1.placeholder_with_default(np.zeros((1, 1, *shp), dtype=np.float32), (None, None, *shp), "wmark_data")
+        initial_states = tf.compat.v1.placeholder_with_default(np.zeros((1, *shp), dtype=np.float32), (None, *shp), "initial_states")
+        dimwise_mixing_ordering = tf.compat.v1.placeholder_with_default(np.zeros((1, *shp), dtype=np.int32), (None, *shp), "dimwise_mixing_ordering")
     else:
-        data = tf.placeholder_with_default(np.zeros((1, n_dims), dtype=np.float32), (None, n_dims), "data")
-        waymark_data = tf.placeholder_with_default(np.zeros((1, 1, n_dims), dtype=np.float32), (None, None, n_dims), "wmark_data")
-        initial_states = tf.placeholder_with_default(np.zeros((1, n_dims), dtype=np.float32), (None, n_dims), "initial_states")
-        dimwise_mixing_ordering = tf.placeholder_with_default(np.zeros((1, n_dims), dtype=np.int32), (None, n_dims), "dimwise_mixing_ordering")
+        data = tf.compat.v1.placeholder_with_default(np.zeros((1, n_dims), dtype=np.float32), (None, n_dims), "data")
+        waymark_data = tf.compat.v1.placeholder_with_default(np.zeros((1, 1, n_dims), dtype=np.float32), (None, None, n_dims), "wmark_data")
+        initial_states = tf.compat.v1.placeholder_with_default(np.zeros((1, n_dims), dtype=np.float32), (None, n_dims), "initial_states")
+        dimwise_mixing_ordering = tf.compat.v1.placeholder_with_default(np.zeros((1, n_dims), dtype=np.int32), (None, n_dims), "dimwise_mixing_ordering")
 
-    single_wmark_idx = tf.placeholder(tf.int32, shape=(None, ), name="single_wmark_idx")
-    wmark_sample_size = tf.placeholder(tf.int32, shape=(), name="wmark_sample_size")
+    single_wmark_idx = tf.compat.v1.placeholder(tf.int32, shape=(None, ), name="single_wmark_idx")
+    wmark_sample_size = tf.compat.v1.placeholder(tf.int32, shape=(), name="wmark_sample_size")
 
-    n_steps_per_bridge = tf.placeholder(tf.int32, shape=(None, ), name="n_steps_per_bridge")
-    n_leapfrog_steps = tf.placeholder_with_default(ais_n_leapfrog_steps, shape=(), name="n_leapfrog_steps")
+    n_steps_per_bridge = tf.compat.v1.placeholder(tf.int32, shape=(None, ), name="n_steps_per_bridge")
+    n_leapfrog_steps = tf.compat.v1.placeholder_with_default(ais_n_leapfrog_steps, shape=(), name="n_leapfrog_steps")
     n_leapfrog_steps = tf.cast(n_leapfrog_steps, tf.int32)
-    full_model_thinning_factor = tf.placeholder(tf.int32, shape=(), name="full_model_thinning_factor")
+    full_model_thinning_factor = tf.compat.v1.placeholder(tf.int32, shape=(), name="full_model_thinning_factor")
 
-    n_noise_samples = tf.placeholder_with_default(ais_n_chains, (), name="n_noise_samples")
-    initial_weights = tf.placeholder(tf.float32, shape=(None,), name="initial_raise_weights")
-    init_annealed_stepsize = tf.placeholder(tf.float32, shape=(), name="init_annealed_stepsize")
-    post_annealed_step_size = tf.placeholder(tf.float32, shape=(), name="post_annealed_step_size")
-    post_annealed_n_adapt_steps = tf.placeholder(tf.int32, shape=(), name="post_annealed_n_adapt_steps")
-    grad_idx = tf.placeholder(tf.int32, shape=(), name="grad_idx")
+    n_noise_samples = tf.compat.v1.placeholder_with_default(ais_n_chains, (), name="n_noise_samples")
+    initial_weights = tf.compat.v1.placeholder(tf.float32, shape=(None,), name="initial_raise_weights")
+    init_annealed_stepsize = tf.compat.v1.placeholder(tf.float32, shape=(), name="init_annealed_stepsize")
+    post_annealed_step_size = tf.compat.v1.placeholder(tf.float32, shape=(), name="post_annealed_step_size")
+    post_annealed_n_adapt_steps = tf.compat.v1.placeholder(tf.int32, shape=(), name="post_annealed_n_adapt_steps")
+    grad_idx = tf.compat.v1.placeholder(tf.int32, shape=(), name="grad_idx")
 
     return AttrDict(locals())
 
@@ -117,7 +117,7 @@ def build_ais_outer_loop(e_fns,
     final_weights = tf.add_n(all_weights)  # (n_chains, )
 
     # compute AIS log partition / RAISE average log likelihood
-    annealing_result = tf.reduce_logsumexp(final_weights) - tf.log(tf.cast(ais_n_chains, tf.float32))
+    annealing_result = tf.reduce_logsumexp(final_weights) - tf.compat.v1.log(tf.cast(ais_n_chains, tf.float32))
 
     # calculate variance of the log-weights for all sub-PoEs
     weight_vars = [tf_log_var_exp(tf.add_n(all_weights[:i])) for i in range(1, len(all_weights)+1)]
@@ -227,7 +227,7 @@ def build_ais(initial_state,
     if use_mh_step:
         # calculate average acceptance rate across all chains for final step of AIS
         res = kernel_results.inner_results.inner_results
-        log_n = tf.log(tf.cast(tf.size(res.log_accept_ratio), res.log_accept_ratio.dtype))
+        log_n = tf.compat.v1.log(tf.cast(tf.size(res.log_accept_ratio), res.log_accept_ratio.dtype))
         log_mean_accept_ratio = tf.reduce_logsumexp(tf.minimum(res.log_accept_ratio, 0.)) - log_n
         ais_accept_rate = tf.exp(log_mean_accept_ratio)
     else:
@@ -520,8 +520,8 @@ def maybe_build_gradient_wrt_input(config, neg_e_fns, pholders, flow_inv_fn=None
             assign_val = flow_inv_fn(assign_val)
             event_shp = [np.prod(np.array(event_shp))]
 
-        grad_input_var = tf.get_variable('grad_input_var', shape=[b_size, *event_shp], dtype=tf.float32)
-        assign_input = tf.assign(grad_input_var, assign_val)
+        grad_input_var = tf.compat.v1.get_variable('grad_input_var', shape=[b_size, *event_shp], dtype=tf.float32)
+        assign_input = tf.compat.v1.assign(grad_input_var, assign_val)
 
         with tf.control_dependencies([assign_input]):
             bridge_terms = [e(grad_input_var) for sublist in neg_e_fns for e in sublist]  # flatten nested list
@@ -979,7 +979,7 @@ def assess_parameters(config):
 
     ais_save_dir = get_ais_dir()
     param_dir = path_join(ais_save_dir, "parameter_stats/")
-    all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    all_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
     # compute means & stds of per-ratio scales + biases
     if config.network_type != "quadratic":
@@ -1404,8 +1404,8 @@ def main():
 
     set_num_chains(config, logger)
 
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
+    with tf.compat.v1.Session() as sess:
+        sess.run(tf.compat.v1.global_variables_initializer())
 
         logger.info("Loading model from epoch: {}".format(config.eval_epoch_idx))
         load_model(sess, config.eval_epoch_idx, config)

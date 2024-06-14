@@ -50,7 +50,7 @@ class MogMade:
                 logits - 0.5 *
                 (
                         np.log(2 * np.pi)
-                        + 2 * tf.log(scales)
+                        + 2 * tf.compat.v1.log(scales)
                         + ((tf.reshape(x, shape_list(x) + [-1]) - means) / scales) ** 2
                 ),
                 axis=-1
@@ -248,7 +248,7 @@ def residual_mog_made_template(n_out=30,
         scales = output[..., 2 * n_mixture_comps:]
 
         # create extra parameter to ensure that logits are inited near 0
-        alpha = tf.get_variable("alpha", shape_list(logits)[1:], initializer=tf.random_normal_initializer(1e-2))
+        alpha = tf.compat.v1.get_variable("alpha", shape_list(logits)[1:], initializer=tf.random_normal_initializer(1e-2))
 
         logits = tf.nn.log_softmax(alpha * logits, dim=-1)
         scales = tf.nn.softplus(np.log(np.e - 1) + scales) + scale_min  # initialised to near 1
