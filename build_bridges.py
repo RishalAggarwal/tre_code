@@ -2,7 +2,7 @@
 
 import os
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-
+import wandb
 import numpy as np
 import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
@@ -57,7 +57,7 @@ def build_placeholders(config):
 
 
 # noinspection PyUnresolvedReferences
-def build_optimisers(tre_loss, pholders, config):
+def build_optimisers(tre_loss, logistic_tre_loss_term1,logistic_tre_loss_term2,pholders,max_num_ratios, config):
     """Optimise energy-based model parameters"""
 
     model_scope = "tre_model"
@@ -69,7 +69,20 @@ def build_optimisers(tre_loss, pholders, config):
     scale_param = [v for v in energy_params if "b_all" in v.name][0]
     energy_params = [v for v in energy_params if "b_all" not in v.name]
 
-    scale_optim_op = scale_optimizer.minimize(tf.reduce_mean(tre_loss), var_list=scale_param)
+    if config.use_bar_update:
+        grad=None
+        for index in range(config.num_losses):
+            loss_term=tf.reduce_sum(logistic_tre_loss_term1[:,index])
+            if grad is None:
+                grad=scale_optimizer.compute_gradients(loss_term, var_list=scale_param)
+            else:
+                grad=grad+scale_optimizer.compute_gradients(loss_term, var_list=scale_param)        
+        for index in range(config.num_losses):
+            loss_term=tf.reduce_sum(logistic_tre_loss_term2[:,index])
+            grad=grad+scale_optimizer.compute_gradients(loss_term, var_list=scale_param)
+        scale_optim_op = scale_optimizer.apply_gradients(grad)
+    else:
+        scale_optim_op = scale_optimizer.minimize(tf.reduce_mean(tre_loss), var_list=scale_param)
 
     reg_term = tf.compat.v1.losses.get_regularization_loss(scope=model_scope)
     tre_optim_op = optimizer.minimize(tf.reduce_mean(tre_loss) + reg_term, var_list=energy_params)
@@ -81,6 +94,8 @@ def build_optimisers(tre_loss, pholders, config):
 
 def build_optimiser(config, lr_var, scale_param_lr):
 
+    if "scale_param_lr" in config.keys():
+        scale_param_lr = config.scale_param_lr
     if config.optimizer == "adam":
         optimizer = tf.compat.v1.train.AdamOptimizer(lr_var)
         scale_optimizer = tf.compat.v1.train.AdamOptimizer(scale_param_lr)
@@ -95,7 +110,8 @@ def build_optimiser(config, lr_var, scale_param_lr):
         scale_optimizer = tf.compat.v1.train.MomentumOptimizer(scale_param_lr, momentum=0.9, use_nesterov=True)
     else:
         raise ValueError("unknown optimizer: {}".format(config.optimizer))
-
+    if config.use_bar_update:
+        scale_optimizer = tf.compat.v1.train.GradientDescentOptimizer(scale_param_lr)
     return optimizer, scale_optimizer
 
 
@@ -105,7 +121,7 @@ def build_train_loss(config, neg_energy, loss_weights):
                                 label_smoothing_alpha=config.get("label_smoothing_alpha", 0.0),
                                 one_sided_smoothing=config.get("one_sided_smoothing", True)
                                 )
-    logistic_tre_loss, _, _ = logistic_obj.loss(neg_energy)  # (n_losses, )
+    logistic_tre_loss, logistic_tre_loss_term1, logistic_tre_loss_term2 = logistic_obj.loss(neg_energy)  # (n_losses, )
 
     nwj_object = NWJLoss()
     nwj_tre_loss, _, _ = nwj_object.loss(neg_energy)
@@ -124,7 +140,7 @@ def build_train_loss(config, neg_energy, loss_weights):
 
     tre_train_loss = tre_train_loss * loss_weights  # default weights are uniform
 
-    return tre_train_loss
+    return tre_train_loss,logistic_tre_loss_term1,logistic_tre_loss_term2
 
 
 def build_val_loss(config, val_neg_energies):
@@ -176,6 +192,7 @@ def build_graph(config):
 
         idxs = config.initial_waymark_indices
         max_num_ratios = idxs[-1]
+        print("max num ratios is: ", max_num_ratios)
 
         energy_obj = build_energies(config=config,
                                     bridge_idxs=pholders.bridge_idxs,
@@ -186,8 +203,8 @@ def build_graph(config):
         neg_energies = energy_obj.neg_energy(wmark_data, is_train=True, is_wmark_input=True)
 
     # build train loss & optimisation step
-    tre_train_loss = build_train_loss(config, neg_energies, pholders.loss_weights)
-    tre_optim_op = build_optimisers(tre_train_loss, pholders, config)
+    tre_train_loss,logistic_tre_loss_term1,logistic_tre_loss_term2 = build_train_loss(config, neg_energies, pholders.loss_weights)
+    tre_optim_op = build_optimisers(tre_train_loss, logistic_tre_loss_term1,logistic_tre_loss_term2,pholders, max_num_ratios,config)
 
     # build validation operations
     val_neg_energies = energy_obj.neg_energy(wmark_data, is_train=False, is_wmark_input=True)
@@ -243,7 +260,8 @@ def train(g, sess, train_dp, val_dp, saver1, saver2, config):
         for j, batch in enumerate(train_dp):
 
             fd = get_feed_dict(g, sess, train_dp, batch, config, lr=learn_rate, j=j)
-            sess.run(g.tre_optim_op, feed_dict=fd)
+            tre_train_loss,_=sess.run([g.tre_train_loss,g.tre_optim_op], feed_dict=fd)
+            wandb.log({"tre_train_loss":tf.reduce_mean(tre_train_loss)})
             n_batches_seen += 1
 
         stop = post_epoch_events(g, sess, train_dp, val_dp, saver1, saver2, model_dir, config, logger)
@@ -395,7 +413,8 @@ def eval_model(g, sess, train_dp, val_dp, config, use_train_data=False, save=Tru
     val_dp.max_num_batches = -1
 
     config["current_val_loss"] = np.mean(val_tre_loss)
-
+    wandb.log({"current_val_loss":config["current_val_loss"]})
+    wandb.log({"epoch":config.epoch_idx})
 
 def eval_train_or_val_set(g, sess, dp, save, logger, which_set, config):
 
@@ -425,8 +444,16 @@ def eval_train_or_val_set(g, sess, dp, save, logger, which_set, config):
     logger.info("{} tre loss {:0.3f}".format(which_set, np.mean(tre_loss)))
     logger.info("{} total neg energies  {:0.3f}".format(which_set, np.sum(energy)))
 
+    wandb.log({f"{which_set}_epoch_tre_loss":np.mean(tre_loss),f"{which_set}_epoch_total_neg_energy":np.sum(energy)})
+
     logger.info("\n{} tre losses {}".format(which_set, tre_loss))
     logger.info("\n{} neg energies {}".format(which_set, energy))
+
+    count=0
+    for loss,energy in zip(tre_loss,energy):
+        wandb.log({f"{which_set}_tre_loss_{count}":loss,f"{which_set}_neg_energy_{count}":energy})
+        count+=1
+    
 
     if spec_norms.size > 0:
         logger.info("spec norms: {}".format(spec_norms))
@@ -711,6 +738,7 @@ def load_config():
     root = "saved_models" if args.restore_model else "configs"
     with open(project_root + "{}/{}.json".format(root, args.config_path)) as f:
         config = json.load(f)
+        
 
     if not args.restore_model:
         config = merge_dicts(*list(config.values()))  # json is 2-layers deep, flatten it
@@ -736,11 +764,13 @@ def main():
     """Run density estimation experiment with telescoping density-ratio estimation"""
     make_logger()
     logger = logging.getLogger("tf")
-    np.set_printoptions(precision=2)
-
+    #np.set_printoptions(precision=2)
+    
     # load a config which is created after running make_configs.py
     config = load_config()
+    wandb.init(project="tre", config=config,name=config.run_name)
 
+    
     # load data provider objects that can be iterated through to obtain batches of data
     train_dp, val_dp = load_data_providers_and_update_conf(config)
 

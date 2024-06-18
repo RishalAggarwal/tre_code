@@ -345,7 +345,8 @@ def build_energies(config,
                                       kernel_shape=config.conv_kernel_shape,
                                       head_multiplier=head_multiplier,
                                       quadratic_constraint_type=config.get("quadratic_constraint_type", "semi_pos_def"),
-                                      debug=config.debug != -1)
+                                      debug=config.debug != -1,
+                                      use_bar_update=config.get("use_bar_update", False))
 
         elif config.network_type == "mlp":
             energy_obj = CondMlpEnergy(input_size=config.n_dims,

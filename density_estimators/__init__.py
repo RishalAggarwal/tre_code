@@ -1,7 +1,7 @@
 import os
 import sys
 
-default_path = os.path.expanduser("~/tre_code/")
+default_path = os.path.expanduser("./")
 if os.path.isdir(default_path):
     project_root = default_path
 else:

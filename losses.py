@@ -77,6 +77,80 @@ class LogisticLoss:
         self.dawid_statistic_numerator = num_class1 - sum_class1_p1 - sum_class2_p1  # (n_losses)
         self.dawid_statistic_denominator = class1_bernoulli_var + class2_bernoulli_var  # (n_losses)
 
+# class ExponentialLoss:
+
+#     def __init__(self, nu, label_smoothing_alpha=0.0, one_sided_smoothing=True):
+#         self.nu = nu
+#         self.log_nu = tf.compat.v1.log(nu)
+#         self.class1_acc = None
+#         self.class2_acc = None
+#         self.acc = None
+#         self.dawid_statistic_numerator = None
+#         self.dawid_statistic_denominator = None
+#         assert 0 <= label_smoothing_alpha < 0.5, "label smoothing parameter should be between 0 & 0.5"
+#         self.ls_alpha = label_smoothing_alpha
+#         self.one_sided_smoothing = one_sided_smoothing
+
+#     @tf_var_scope
+#     def loss(self, neg_energy):
+#         """Returns average over K Logistic losses given negative energies of model
+
+#         Args:
+#             neg_energy:  (2 * n_batch, n_ratios)
+#         """
+#         neg_energy1, neg_energy2 = tf.split(neg_energy, num_or_size_splits=2, axis=0)  # each (n, n_losses)
+
+#         term1 = tf.compat.v1.log_sigmoid(neg_energy1 - self.log_nu)  # (n, n_losses)
+#         term2 = tf.compat.v1.log_sigmoid(self.log_nu - neg_energy2)  # (n, n_losses)
+
+#         if self.ls_alpha > 0:
+#             term1, term2 = self.apply_label_smoothing(neg_energy1, neg_energy2, term1, term2)
+
+#         self.compute_classification_acc(term1, term2)
+#         self.compute_dawid_statistic(term1, term2)
+
+#         loss = -tf.reduce_mean(term1, axis=0) - self.nu * tf.reduce_mean(term2, axis=0)  # (n_losses, )
+
+#         return loss, -term1, -self.nu*term2
+
+#     def apply_label_smoothing(self, neg_energy1, neg_energy2, term1, term2):
+
+#         term1 *= (1 - self.ls_alpha)
+#         term1 += self.ls_alpha * tf.compat.v1.log_sigmoid(-neg_energy1)
+#         if not self.one_sided_smoothing:
+#             term2 *= (1 - self.ls_alpha)
+#             term2 += self.ls_alpha * tf.compat.v1.log_sigmoid(neg_energy2)
+
+#         return term1, term2
+
+#     def compute_classification_acc(self, term1, term2):
+
+#         class1_scores = tf.where(term1 > -tf.compat.v1.log(2.), tf.ones_like(term1, dtype=tf.float32),
+#                                  tf.zeros_like(term1, dtype=tf.float32))
+#         class2_scores = tf.where(term2 > -tf.compat.v1.log(2.), tf.ones_like(term2, dtype=tf.float32),
+#                                  tf.zeros_like(term2, dtype=tf.float32))
+
+#         self.class1_acc = tf.reduce_mean(class1_scores, axis=0)  # (n_losses,)
+#         self.class2_acc = tf.reduce_mean(class2_scores, axis=0)  # (n_losses,)
+
+#         self.acc = 0.5 * (self.class1_acc + self.class2_acc)  # (n_losses,)
+
+#     def compute_dawid_statistic(self, term1, term2):
+#         """Dawid, A. P. Prequential analysis. Encyclopedia of Statistical Sciences, 1:464–470, 1997"""
+#         num_class1 = tf.cast(shape_list(term1)[0], tf.float32)
+
+#         class1_p1 = tf.exp(term1)
+#         class2_p1 = 1 - tf.exp(term2)
+
+#         sum_class1_p1 = tf.reduce_sum(class1_p1, axis=0)  # (n_losses)
+#         sum_class2_p1 = tf.reduce_sum(class2_p1, axis=0)  # (n_losses)
+
+#         class1_bernoulli_var = tf.reduce_sum(class1_p1 * (1 - class1_p1), axis=0)  # (n_losses)
+#         class2_bernoulli_var = tf.reduce_sum(class2_p1 * (1 - class2_p1), axis=0)  # (n_losses)
+
+#         self.dawid_statistic_numerator = num_class1 - sum_class1_p1 - sum_class2_p1  # (n_losses)
+#         self.dawid_statistic_denominator = class1_bernoulli_var + class2_bernoulli_var  # (n_losses)
+
 
 class DVLoss:
 

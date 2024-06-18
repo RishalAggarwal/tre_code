@@ -4,7 +4,6 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import tensorflow as tf
-
 from keras_layers import GatuOrTanh
 from tensorflow.keras import layers as k_layers
 from tensorflow.keras import initializers
@@ -55,7 +54,7 @@ def tf_product(a, b):
 
 def tf_log_mean_exp(x):
     n = tf.cast(shape_list(x)[0], dtype=tf.float32)
-    return tf.reduce_logsumexp(x) - tf.log(n)
+    return tf.reduce_logsumexp(x) - tf.compat.v1.log(n)
 
 
 def tf_log_var_exp(x):
@@ -64,9 +63,9 @@ def tf_log_var_exp(x):
     x_max = tf.reduce_max(x)
     x_prime = x - x_max
     mu_prime = mu - x_max
-    summand = tf.exp(2 * x_prime) - tf.exp(2 * mu_prime)
+    summand = tf.compat.v1.exp(2 * x_prime) - tf.compat.v1.exp(2 * mu_prime)
     n = tf.cast(shape_list(x)[0], dtype=tf.float32)
-    return 2 * x_max + tf.log(tf.reduce_sum(summand)) - tf.log(n)
+    return 2 * x_max + tf.compat.v1.log(tf.reduce_sum(summand)) - tf.compat.v1.log(n)
 
 
 def shape_list(x):

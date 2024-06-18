@@ -167,7 +167,7 @@ def _tf_get_shapes_for_additive_wmarks(data, waymark_idxs, config, logger):
 
     if config.shuffle_waymarks:
         logger.info("WARNING: waymarks samples are NOT coupled!")
-        n_data -= tf.mod(n_data, n_waymarks)
+        n_data -= tf.compat.v1.mod(n_data, n_waymarks)
         batch_size_per_waymark = n_data / n_waymarks
     else:
         logger.info("Waymark samples are coupled! (this is the default setting)")

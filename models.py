@@ -13,6 +13,12 @@ from utils.tf_utils import *
 tfd = tfp.distributions
 
 
+@tf.custom_gradient
+def bar_b(b):
+    def grad(dy):
+        return tf.math.sign(dy)*tf.compat.v1.log(tf.math.abs(dy) + 1e-12)
+    return b, grad
+
 class LinearHeads:
     """Final linear heads in a multi-classifier energy network"""
 
@@ -84,7 +90,8 @@ class QuadraticHeads:
                  max_spectral_norm_params=None,
                  quadratic_constraint_type="semi_pos_def",
                  use_linear_term=True,
-                 reg_coef=0.
+                 reg_coef=0.,
+                 use_bar_update=False,
                  ):
 
         self.input_dim = input_dim
@@ -95,7 +102,7 @@ class QuadraticHeads:
         self.quadratic_constraint_type = quadratic_constraint_type
         self.use_linear_term = use_linear_term
         self.reg_coef = reg_coef
-
+        self.use_bar_update = use_bar_update
         self.head_assignments = tf.no_op()
 
     @property
@@ -116,6 +123,8 @@ class QuadraticHeads:
         e += self.quad_energy(x, Q)  # (?, num_ratios)
         if self.use_linear_term:
                 e += tf.reduce_sum(x * W, axis=-1)  # (?, num_ratios)
+        if self.use_bar_update:
+            b = bar_b(b)
         e += b
 
         return -e  # (?, num_ratios)
@@ -1015,6 +1024,7 @@ def init_heads(head_type,
                max_spectral_norm_params,
                head_multiplier,
                quadratic_constraint_type,
+               use_bar_update,
                **kwargs
                ):
 
@@ -1032,7 +1042,8 @@ def init_heads(head_type,
                                max_num_ratios=max_num_ratios,
                                use_single_head=use_single_head,
                                max_spectral_norm_params=max_spectral_norm_params,
-                               quadratic_constraint_type=quadratic_constraint_type)
+                               quadratic_constraint_type=quadratic_constraint_type,
+                               use_bar_update=use_bar_update)
 
     else:
         raise ValueError("Final layer of type '{}' not recognised. "
