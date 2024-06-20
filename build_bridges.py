@@ -70,20 +70,22 @@ def build_optimisers(tre_loss, logistic_tre_loss_term1,logistic_tre_loss_term2,p
     energy_params = [v for v in energy_params if "b_all" not in v.name]
 
     if config.use_bar_update:
-        grad=None
-        for index in range(config.num_losses):
-            loss_term=tf.reduce_sum(logistic_tre_loss_term1[:,index])
-            if grad is None:
-                grad=scale_optimizer.compute_gradients(loss_term, var_list=scale_param)
-            else:
-                grad=grad+scale_optimizer.compute_gradients(loss_term, var_list=scale_param)        
-        for index in range(config.num_losses):
-            loss_term=tf.reduce_sum(logistic_tre_loss_term2[:,index])
-            grad=grad+scale_optimizer.compute_gradients(loss_term, var_list=scale_param)
-        scale_optim_op = scale_optimizer.apply_gradients(grad)
+        # grad=None
+        # for index in range(config.num_losses):
+        #     loss_term=tf.reduce_sum(logistic_tre_loss_term1[:,index])
+        #     if grad is None:
+        #         grad=scale_optimizer.compute_gradients(loss_term, var_list=scale_param)
+        #     else:
+        #         grad=grad+scale_optimizer.compute_gradients(loss_term, var_list=scale_param)       
+        # for index in range(config.num_losses):
+        #     loss_term=tf.reduce_sum(logistic_tre_loss_term2[:,index])
+        #     grad=grad+scale_optimizer.compute_gradients(loss_term, var_list=scale_param)
+        grad=scale_optimizer.compute_gradients(logistic_tre_loss_term1, var_list=scale_param)
+        grad=grad+scale_optimizer.compute_gradients(logistic_tre_loss_term2, var_list=scale_param)
     else:
-        scale_optim_op = scale_optimizer.minimize(tf.reduce_mean(tre_loss), var_list=scale_param)
-
+        grad=scale_optimizer.compute_gradients(tf.reduce_mean(tre_loss), var_list=scale_param)
+    grad=[(tf.clip_by_value(g, -10, 10), v) for g, v in grad]
+    scale_optim_op = scale_optimizer.apply_gradients(grad)
     reg_term = tf.compat.v1.losses.get_regularization_loss(scope=model_scope)
     tre_optim_op = optimizer.minimize(tf.reduce_mean(tre_loss) + reg_term, var_list=energy_params)
 
@@ -112,6 +114,8 @@ def build_optimiser(config, lr_var, scale_param_lr):
         raise ValueError("unknown optimizer: {}".format(config.optimizer))
     if config.use_bar_update:
         scale_optimizer = tf.compat.v1.train.GradientDescentOptimizer(scale_param_lr)
+        #scale_optimizer = tf.compat.v1.train.MomentumOptimizer(scale_param_lr, momentum=0.9, use_nesterov=True)
+        #scale_optimizer = tf.compat.v1.train.AdamOptimizer(scale_param_lr)
     return optimizer, scale_optimizer
 
 

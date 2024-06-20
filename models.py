@@ -16,7 +16,7 @@ tfd = tfp.distributions
 @tf.custom_gradient
 def bar_b(b):
     def grad(dy):
-        return tf.math.sign(dy)*tf.compat.v1.log(tf.math.abs(dy) + 1e-12)
+        return tf.math.sign(dy)*tf.compat.v1.log(tf.math.abs(dy) + 1e-6)
     return b, grad
 
 class LinearHeads:

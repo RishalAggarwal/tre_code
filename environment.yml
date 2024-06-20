@@ -1,4 +1,4 @@
-name: tre
+name: tensorflow2
 channels:
   - nvidia
   - conda-forge
